@@ -26,34 +26,75 @@ document.addEventListener("DOMContentLoaded", () => {
           participantsHTML = `
             <div class="participants-section">
               <strong>Participants:</strong>
-              <ul class="participants-list">
+              <ul class="participants-list" style="list-style-type: none; padding-left: 0;">
                 ${details.participants
                   .map(
                     (email) =>
-                      `<li><span class="participant-email">${email}</span></li>`
-                  )
-                  .join("")}
-              </ul>
-            </div>
-          `;
-        } else {
-          participantsHTML = `
-            <div class="participants-section">
-              <strong>Participants:</strong>
-              <p class="no-participants">No participants yet.</p>
-            </div>
-          `;
-        }
-
-        activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
-          ${participantsHTML}
-        `;
+                      `<li style="display: flex; align-items: center; margin-bottom: 4px;">
+                        <span class="participant-email">${email}</span>
+                        <span class="delete-participant" title="Remove participant" data-activity="${name}" data-email="${email}" style="cursor:pointer; margin-left:8px; color:#c62828; font-size:1.2em;">
+                          &#128465;
+                        try {
+                          fetch('/signup', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ email: email, activity: activity })
+                          })
+                          .then(function(res) {
+                            return res.json().then(function(data) {
+                              messageDiv.classList.remove('hidden', 'error', 'success');
+                              if (res.ok) {
+                                messageDiv.classList.add('success');
+                                messageDiv.textContent = data.detail || 'Signed up successfully!';
+                                signupForm.reset();
+                                loadActivities();
+                              } else {
+                                messageDiv.classList.add('error');
+                                messageDiv.textContent = data.detail || 'Error signing up.';
+                              }
+                            });
+                          })
+                          .catch(function() {
+                            messageDiv.classList.remove('hidden', 'success');
+                            messageDiv.classList.add('error');
+                            messageDiv.textContent = 'Network error.';
+                          });
+                        } catch (err) {
+                          messageDiv.classList.remove('hidden', 'success');
+                          messageDiv.classList.add('error');
+                          messageDiv.textContent = 'Network error.';
+                        }
 
         activitiesList.appendChild(activityCard);
+
+        // Adiciona evento de remoção para cada ícone de exclusão
+        setTimeout(function() {
+          document.querySelectorAll('.delete-participant').forEach(function(icon) {
+            icon.addEventListener('click', function(e) {
+              var activity = icon.getAttribute('data-activity');
+              var email = icon.getAttribute('data-email');
+              if (confirm('Remove ' + email + ' from ' + activity + '?')) {
+                fetch('/activities/' + encodeURIComponent(activity) + '/participants/' + encodeURIComponent(email), {
+                  method: 'DELETE'
+                })
+                .then(function(res) {
+                  if (res.ok) {
+                    loadActivities();
+                  } else {
+                    return res.json().then(function(data) {
+                      alert(data.detail || 'Error removing participant');
+                    });
+                  }
+                })
+                .catch(function() {
+                  alert('Network error');
+                });
+              }
+            });
+          });
+        }, 0);
 
         // Add option to select dropdown
         const option = document.createElement("option");
